@@ -75,7 +75,10 @@ async function fetchBusETA() {
         const response = await fetch(`https://data.etabus.gov.hk/v1/transport/kmb/stop-eta/${hardcodedStopId}`);
         const data = await response.json();
         
+        console.log("原始資料筆數:", data?.data?.length);
         const validEtas = data.data.filter(bus => bus.eta).slice(0, 4);
+        console.log("過濾後筆數:", validEtas.length); // 如果這裡是 0，下面的式子就會是 true
+        console.log("是否為空陣列:", validEtas.length === 0); // true
         
         if (validEtas.length === 0) {
             document.getElementById('bus-info').innerHTML = '<p>No upcoming buses</p>';
