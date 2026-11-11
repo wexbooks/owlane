@@ -4,13 +4,15 @@ document.addEventListener('DOMContentLoaded', () => {
     
     fetchWeather();
     fetchTide();
+    
+    // Initialize Bus Tiles in the DOM before fetching data
+    initializeBusTiles();
     fetchBusETA();
     
-    // Refresh API data every 60 seconds
     setInterval(() => {
         fetchWeather();
         fetchBusETA();
-    }, 60000);
+    }, 60000); // Refresh API data every 60 seconds
 });
 
 // 1. Current Time
@@ -96,43 +98,81 @@ async function fetchTide() {
     }
 }
 
-// 4. Bus ETA (KMB Open Data)
-async function fetchBusETA() {
-    // GITHUB PAGES LIMITATION: Because there is no backend to compute geospatial queries (closest stop), 
-    // downloading the entire KMB route/stop geometry JSON to the client would crash the browser or cause massive latency.
-    // Solution for Static Pages: Hardcode the user's specific home/work stop ID. 
-    // Example Stop ID used here (you will need to replace this with your actual local stop ID from the KMB route API).
-    const hardcodedStopId = '79842A7E2FC0844F'; 
-    
-    try {
-        const response = await fetch(`https://data.etabus.gov.hk/v1/transport/kmb/stop-eta/${hardcodedStopId}`);
-        const data = await response.json();
-        
-        console.log("原始資料筆數:", data?.data?.length);
-        const validEtas = data.data.filter(bus => bus.eta).slice(0, 4);
-        console.log("過濾後筆數:", validEtas.length); // 如果這裡是 0，下面的式子就會是 true
-        console.log("是否為空陣列:", validEtas.length === 0); // true
-        
-        if (validEtas.length === 0) {
-            document.getElementById('bus-info').innerHTML = '<p>No upcoming buses</p>';
-            return;
-        }
+// --- NEW BUS ETA LOGIC ---
 
-        const etaHtml = validEtas.map(bus => {
-            const etaTime = new Date(bus.eta).toLocaleTimeString('en-HK', {hour: '2-digit', minute: '2-digit', hour12: false});
-            return `
-                <div class="bus-row">
-                    <span>
-                        <span class="bus-route-num">${bus.route}</span> 
-                        ${bus.dest_en}
-                    </span>
-                    <span class="bus-eta-time">${etaTime}</span>
+const busConfiguration = {
+    '79842A7E2FC0844F': ['42M', '248M', '43A'],
+    'A453A24D622091F0': ['X42C', '42C', '42A'],
+    '9E42D981C59B5762': ['B10']
+};
+
+function initializeBusTiles() {
+    const dashboard = document.getElementById('dashboard');
+    
+    // Create the 7 tiles dynamically based on the configuration
+    for (const [stopId, routes] of Object.entries(busConfiguration)) {
+        routes.forEach(route => {
+            const tile = document.createElement('section');
+            tile.className = 'tile bus-tile';
+            tile.innerHTML = `
+                <h2 class="bus-title">
+                    <span class="route-badge">${route}</span>
+                </h2>
+                <div id="bus-${stopId}-${route}" class="tile-content">
+                    <div class="loader"></div>
                 </div>
             `;
-        }).join('');
-        
-        document.getElementById('bus-info').innerHTML = etaHtml;
-    } catch (error) {
-        document.getElementById('bus-info').innerHTML = '<p>Bus data unavailable</p>';
+            dashboard.appendChild(tile);
+        });
+    }
+}
+
+async function fetchBusETA() {
+    for (const [stopId, routes] of Object.entries(busConfiguration)) {
+        try {
+            // Fetch once per stop to save bandwidth and API rate limits
+            const response = await fetch(`https://data.etabus.gov.hk/v1/transport/kmb/stop-eta/${stopId}`);
+            const data = await response.json();
+            
+            routes.forEach(route => {
+                const container = document.getElementById(`bus-${stopId}-${route}`);
+                if (!container) return;
+
+                // Filter data for this specific route, ensure ETA exists, and limit to 3 buses
+                const validEtas = data.data
+                    .filter(bus => bus.route === route && bus.eta)
+                    .slice(0, 3);
+                
+                if (validEtas.length === 0) {
+                    container.innerHTML = '<p>No upcoming buses</p>';
+                    return;
+                }
+
+                container.innerHTML = validEtas.map(bus => {
+                    const etaDate = new Date(bus.eta);
+                    const timeString = etaDate.toLocaleTimeString('en-HK', {hour: '2-digit', minute: '2-digit', hour12: false});
+                    
+                    // Calculate countdown in minutes
+                    const diffMs = etaDate - new Date();
+                    const diffMins = Math.max(0, Math.floor(diffMs / 60000));
+                    
+                    return `
+                        <div class="bus-row">
+                            <span>To: ${bus.dest_en}</span>
+                            <div class="bus-eta-time">
+                                <span style="color: var(--accent); font-weight: bold;">${timeString}</span>
+                                <span class="bus-countdown">(${diffMins} min)</span>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            });
+        } catch (error) {
+            console.error(`Bus ETA fetch error for stop ${stopId}:`, error);
+            routes.forEach(route => {
+                const container = document.getElementById(`bus-${stopId}-${route}`);
+                if (container) container.innerHTML = '<p>Data unavailable</p>';
+            });
+        }
     }
 }
