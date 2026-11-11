@@ -131,3 +131,32 @@ h2 {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
 }
+
+/* Scrollable Container for 3-Day Tide Data */
+.scrollable {
+    max-height: 220px;
+    overflow-y: auto;
+    padding-right: 8px;
+}
+
+/* Custom Scrollbar for a cleaner dashboard look */
+.scrollable::-webkit-scrollbar {
+    width: 6px;
+}
+.scrollable::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 4px;
+}
+.scrollable::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+}
+
+.tide-date {
+    color: var(--accent);
+    font-size: 0.85rem;
+    font-weight: bold;
+    margin-right: 8px;
+    display: inline-block;
+    width: 45px;
+}
