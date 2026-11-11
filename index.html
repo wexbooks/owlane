@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hong Kong Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <main class="dashboard">
+        <!-- Current Time Tile -->
+        <section class="tile time-tile">
+            <h1 id="time">--:--:--</h1>
+            <p id="date">Loading...</p>
+        </section>
+
+        <!-- Weather Tile -->
+        <section class="tile weather-tile">
+            <h2>Weather (HKO)</h2>
+            <div id="weather-info" class="tile-content">
+                <div class="loader"></div>
+            </div>
+        </section>
+
+        <!-- Tide Tile -->
+        <section class="tile tide-tile">
+            <h2>Tide (Quarry Bay)</h2>
+            <div id="tide-info" class="tile-content">
+                <div class="loader"></div>
+            </div>
+        </section>
+
+        <!-- Bus ETA Tile -->
+        <section class="tile bus-tile">
+            <h2>Nearby Bus ETA</h2>
+            <p class="subtitle">KMB Route Updates</p>
+            <div id="bus-info" class="tile-content">
+                <div class="loader"></div>
+            </div>
+        </section>
+    </main>
+    <script src="app.js"></script>
+</body>
+</html>
