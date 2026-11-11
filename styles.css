@@ -160,3 +160,29 @@ h2 {
     display: inline-block;
     width: 45px;
 }
+
+/* Add specific styling for the dynamic Bus Tiles */
+.bus-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.route-badge {
+    background-color: #e53935;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 1.1rem;
+    font-weight: bold;
+}
+
+.bus-eta-time {
+    text-align: right;
+}
+
+.bus-countdown {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
