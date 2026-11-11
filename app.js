@@ -69,7 +69,7 @@ async function fetchBusETA() {
     // downloading the entire KMB route/stop geometry JSON to the client would crash the browser or cause massive latency.
     // Solution for Static Pages: Hardcode the user's specific home/work stop ID. 
     // Example Stop ID used here (you will need to replace this with your actual local stop ID from the KMB route API).
-    const hardcodedStopId = 'BFA736C2F8189D2F'; 
+    const hardcodedStopId = '79842A7E2FC0844F'; 
     
     try {
         const response = await fetch(`https://data.etabus.gov.hk/v1/transport/kmb/stop-eta/${hardcodedStopId}`);
