@@ -99,26 +99,42 @@ async function fetchTide() {
 }
 
 // --- NEW BUS ETA LOGIC ---
-
+// Configuration for 7 Bus Tiles across 5 Stops with Direction filtering
+// Note: KMB uses 'O' (Outbound) and 'I' (Inbound). 0 is mapped to 'O'.
 const busConfiguration = {
-    '79842A7E2FC0844F': ['42M', '248M', '43A'],
-    'A453A24D622091F0': ['X42C', '42C', '42A'],
-    '9E42D981C59B5762': ['B10']
+    '79842A7E2FC0844F': [
+        { route: '42M', dir: 'O' }, 
+        { route: '248M', dir: 'O' }
+    ],
+    '26AC2D471648CA0C': [
+        { route: '43A', dir: 'O' }
+    ],
+    'A453A24D622091F0': [
+        { route: 'X42C', dir: 'O' }, 
+        { route: '42C', dir: 'O' }
+    ],
+    '79E9234905D6F856': [
+        { route: '42A', dir: 'O' }
+    ],
+    '9E42D981C59B5762': [
+        { route: 'B10', dir: 'O' }
+    ]
 };
 
 function initializeBusTiles() {
     const dashboard = document.getElementById('dashboard');
     
     // Create the 7 tiles dynamically based on the configuration
-    for (const [stopId, routes] of Object.entries(busConfiguration)) {
-        routes.forEach(route => {
+    for (const [stopId, configs] of Object.entries(busConfiguration)) {
+        configs.forEach(config => {
             const tile = document.createElement('section');
             tile.className = 'tile bus-tile';
+            // Unique ID requires both route and dir to prevent overwriting
             tile.innerHTML = `
                 <h2 class="bus-title">
-                    <span class="route-badge">${route}</span>
+                    <span class="route-badge">${config.route}</span>
                 </h2>
-                <div id="bus-${stopId}-${route}" class="tile-content">
+                <div id="bus-${stopId}-${config.route}-${config.dir}" class="tile-content">
                     <div class="loader"></div>
                 </div>
             `;
@@ -128,19 +144,19 @@ function initializeBusTiles() {
 }
 
 async function fetchBusETA() {
-    for (const [stopId, routes] of Object.entries(busConfiguration)) {
+    for (const [stopId, configs] of Object.entries(busConfiguration)) {
         try {
-            // Fetch once per stop to save bandwidth and API rate limits
+            // Fetch once per stop ID (5 calls total)
             const response = await fetch(`https://data.etabus.gov.hk/v1/transport/kmb/stop-eta/${stopId}`);
             const data = await response.json();
             
-            routes.forEach(route => {
-                const container = document.getElementById(`bus-${stopId}-${route}`);
+            configs.forEach(config => {
+                const container = document.getElementById(`bus-${stopId}-${config.route}-${config.dir}`);
                 if (!container) return;
 
-                // Filter data for this specific route, ensure ETA exists, and limit to 3 buses
+                // Filter data for this specific route AND direction, ensure ETA exists, and limit to 3 buses
                 const validEtas = data.data
-                    .filter(bus => bus.route === route && bus.eta)
+                    .filter(bus => bus.route === config.route && (bus.dir === config.dir || bus.dir === '0') && bus.eta)
                     .slice(0, 3);
                 
                 if (validEtas.length === 0) {
@@ -169,8 +185,8 @@ async function fetchBusETA() {
             });
         } catch (error) {
             console.error(`Bus ETA fetch error for stop ${stopId}:`, error);
-            routes.forEach(route => {
-                const container = document.getElementById(`bus-${stopId}-${route}`);
+            configs.forEach(config => {
+                const container = document.getElementById(`bus-${stopId}-${config.route}-${config.dir}`);
                 if (container) container.innerHTML = '<p>Data unavailable</p>';
             });
         }
