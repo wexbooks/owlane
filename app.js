@@ -42,23 +42,56 @@ async function fetchWeather() {
     }
 }
 
-// 3. Tide Data (HKO Open Data - Quarry Bay Station)
+// 3. Tide Data (HKO Open Data - Tai Po Kau Station, 3-Day Forecast)
 async function fetchTide() {
+    const station = 'TPK';
+    const baseUrl = `https://data.weather.gov.hk/weatherAPI/opendata/opendata.php?dataType=HLT&station=${station}&rformat=json`;
+    
     try {
-        const response = await fetch('https://data.weather.gov.hk/weatherAPI/opendata/opendata.php?dataType=HLT&lang=en&rformat=json&station=QUB');
-        const data = await response.json();
+        const fetchPromises = [];
         
-        if (!data || !data.data) throw new Error('No tide data');
-
-        const tideHtml = data.data.slice(0, 4).map(t => `
-            <div class="tide-row">
-                <span>${t.type === 'H' ? 'High' : 'Low'} Tide</span>
-                <span>${t.time} (${t.height}m)</span>
-            </div>
-        `).join('');
+        // Generate API calls for Today + Next 2 Days
+        for (let i = 0; i < 3; i++) {
+            const d = new Date();
+            d.setDate(d.getDate() + i);
+            
+            const year = d.getFullYear();
+            const month = d.getMonth() + 1;
+            const day = d.getDate();
+            const dateDisplay = `${month}/${day}`; // e.g., "11/12"
+            
+            // Push the fetch promise into an array for parallel execution
+            fetchPromises.push(
+                fetch(`${baseUrl}&year=${year}&month=${month}&day=${day}`)
+                    .then(res => res.json())
+                    .then(data => ({ 
+                        dateStr: dateDisplay, 
+                        tides: data.data || [] 
+                    }))
+                    .catch(() => ({ dateStr: dateDisplay, tides: [] })) // Handle individual day failures gracefully
+            );
+        }
+        
+        // Wait for all 3 API calls to resolve
+        const dailyResults = await Promise.all(fetchPromises);
+        
+        // Flatten the array of days into a single HTML string
+        const tideHtml = dailyResults.flatMap(dayRecord => {
+            return dayRecord.tides.map(t => `
+                <div class="tide-row">
+                    <span>
+                        <span class="tide-date">${dayRecord.dateStr}</span> 
+                        ${t.type === 'H' ? 'High' : 'Low'}
+                    </span>
+                    <span>${t.time} (${t.height}m)</span>
+                </div>
+            `);
+        }).join('');
         
         document.getElementById('tide-info').innerHTML = tideHtml || '<p>No tides available</p>';
+        
     } catch (error) {
+        console.error("Tide fetch error:", error);
         document.getElementById('tide-info').innerHTML = '<p>Tide data unavailable</p>';
     }
 }
