@@ -45,6 +45,7 @@ async function fetchWeather() {
 }
 
 // 3. Tide Data (HKO Open Data - Tai Po Kau Station, 3-Day Forecast)
+// 3. Tide Data (HKO Open Data - Tai Po Kau Station, 3-Day Forecast)
 async function fetchTide() {
     const station = 'TPK';
     const baseUrl = `https://data.weather.gov.hk/weatherAPI/opendata/opendata.php?dataType=HLT&station=${station}&rformat=json`;
@@ -62,30 +63,55 @@ async function fetchTide() {
             const day = d.getDate();
             const dateDisplay = `${month}/${day}`; // e.g., "11/12"
             
-            // Push the fetch promise into an array for parallel execution
             fetchPromises.push(
                 fetch(`${baseUrl}&year=${year}&month=${month}&day=${day}`)
                     .then(res => res.json())
-                    .then(data => ({ 
-                        dateStr: dateDisplay, 
-                        tides: data.data || [] 
-                    }))
-                    .catch(() => ({ dateStr: dateDisplay, tides: [] })) // Handle individual day failures gracefully
+                    .then(data => {
+                        // data.data[0] is a row like: ["11", "12", "0312", "2.1", "0945", "0.6", ...]
+                        const row = (data.data && data.data[0]) || [];
+                        const events = [];
+
+                        // Columns 0 & 1 are Month and Day; pairs of (Time, Height) start at index 2
+                        for (let col = 2; col + 1 < row.length; col += 2) {
+                            const rawTime = row[col]?.trim();
+                            const rawHeight = row[col + 1]?.trim();
+
+                            if (rawTime && rawHeight) {
+                                // Format "0312" -> "03:12"
+                                const formattedTime = rawTime.length === 4 
+                                    ? `${rawTime.slice(0, 2)}:${rawTime.slice(2)}` 
+                                    : rawTime;
+
+                                events.push({
+                                    time: formattedTime,
+                                    height: parseFloat(rawHeight)
+                                });
+                            }
+                        }
+
+                        // Label High vs Low by comparing against the neighboring tide height
+                        const tides = events.map((ev, idx, arr) => {
+                            const neighbor = arr[idx + 1] || arr[idx - 1];
+                            const type = neighbor && ev.height >= neighbor.height ? 'High' : 'Low';
+                            return { ...ev, type };
+                        });
+
+                        return { dateStr: dateDisplay, tides };
+                    })
+                    .catch(() => ({ dateStr: dateDisplay, tides: [] }))
             );
         }
         
-        // Wait for all 3 API calls to resolve
         const dailyResults = await Promise.all(fetchPromises);
         
-        // Flatten the array of days into a single HTML string
         const tideHtml = dailyResults.flatMap(dayRecord => {
             return dayRecord.tides.map(t => `
                 <div class="tide-row">
                     <span>
                         <span class="tide-date">${dayRecord.dateStr}</span> 
-                        ${t.type === 'H' ? 'High' : 'Low'}
+                        ${t.type}
                     </span>
-                    <span>${t.time} (${t.height}m)</span>
+                    <span>${t.time} (${t.height.toFixed(2)}m)</span>
                 </div>
             `);
         }).join('');
