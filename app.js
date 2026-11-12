@@ -1,3 +1,6 @@
+let currentProfile = 'work'; // Default init
+let updateInterval;
+
 document.addEventListener('DOMContentLoaded', () => {
     updateTime();
     setInterval(updateTime, 1000);
@@ -5,15 +8,174 @@ document.addEventListener('DOMContentLoaded', () => {
     fetchWeather();
     fetchTide();
     
-    // Initialize Bus Tiles in the DOM before fetching data
-    initializeBusTiles();
-    fetchBusETA();
+    // Determine profile by time & day, then load tiles
+    autoSelectProfile();
     
-    setInterval(() => {
+    // Background data refresh every 60 seconds
+    updateInterval = setInterval(() => {
         fetchWeather();
-        fetchBusETA();
-    }, 60000); // Refresh API data every 60 seconds
+        fetchBusETAForCurrentProfile();
+    }, 60000);
 });
+
+// --- Profile & Routing Configuration ---
+const profiles = {
+    work: {
+        '79842A7E2FC0844F': [{ route: '42M', dir: 'O' }, { route: '248M', dir: 'O' }],
+        '26AC2D471648CA0C': [{ route: '43A', dir: 'O' }],
+        'A453A24D622091F0': [{ route: 'X42C', dir: 'O' }, { route: '42C', dir: 'O' }],
+        '79E9234905D6F856': [{ route: '42A', dir: 'O' }]
+    },
+    offwork: {
+        '26A996F589C84844': [{ route: '42C', dir: 'I' }],
+        'A7FCAD9C2AF7F468': [{ route: '248M', dir: 'O' }],
+        '9E42D981C59B5762': [{ route: 'B10', dir: 'O' }]
+    },
+    holiday: {
+        '9E42D981C59B5762': [{ route: 'B10', dir: 'O' }],
+        '79842A7E2FC0844F': [{ route: '248M', dir: 'O' }, { route: '42M', dir: 'O' }],
+        '26AC2D471648CA0C': [{ route: '43A', dir: 'O' }],
+        'A453A24D622091F0': [{ route: 'X42C', dir: 'O' }, { route: '42C', dir: 'O' }],
+        '79E9234905D6F856': [{ route: '42A', dir: 'O' }]
+    }
+};
+
+// --- Time & Profile Logic ---
+function autoSelectProfile() {
+    const now = new Date();
+    const day = now.getDay(); // 0 = Sun, 6 = Sat
+    const hour = now.getHours();
+    
+    // Note: Checking precise HK Public Holidays requires a live API. 
+    // For this static site logic, we rely on weekends. 
+    // (You can expand this with a hardcoded array of 2026 PH dates if needed)
+    const isWeekend = (day === 0 || day === 6);
+    
+    if (isWeekend) {
+        switchProfile('holiday');
+    } else {
+        // Weekdays: 00:00-11:59 is Work, 12:00-23:59 is Off-work
+        if (hour < 12) {
+            switchProfile('work');
+        } else {
+            switchProfile('offwork');
+        }
+    }
+}
+
+function switchProfile(profileKey) {
+    currentProfile = profileKey;
+    
+    // Update button UI
+    document.querySelectorAll('.profile-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.profile === profileKey);
+    });
+    
+    renderBusTiles();
+    fetchBusETAForCurrentProfile();
+}
+
+// --- Dynamic Bus Tiles UI ---
+function renderBusTiles() {
+    const dashboard = document.getElementById('dashboard');
+    
+    // Remove old bus tiles
+    document.querySelectorAll('.bus-tile').forEach(el => el.remove());
+    
+    const activeConfig = profiles[currentProfile];
+    
+    for (const [stopId, routes] of Object.entries(activeConfig)) {
+        routes.forEach(config => {
+            const tile = document.createElement('section');
+            tile.className = 'tile bus-tile';
+            // Click to refresh this specific tile
+            tile.onclick = () => refreshSingleTile(stopId, config.route, config.dir, tile);
+            
+            tile.innerHTML = `
+                <h2 class="bus-title">
+                    <span class="route-badge">${config.route}</span>
+                    <span class="refresh-icon">🔄</span>
+                </h2>
+                <div id="bus-${stopId}-${config.route}-${config.dir}" class="tile-content">
+                    <div class="loader"></div>
+                </div>
+            `;
+            dashboard.appendChild(tile);
+        });
+    }
+}
+
+// --- Bus Data Fetching ---
+async function fetchBusETAForCurrentProfile() {
+    const activeConfig = profiles[currentProfile];
+    
+    for (const [stopId, routes] of Object.entries(activeConfig)) {
+        try {
+            const response = await fetch(`https://data.etabus.gov.hk/v1/transport/kmb/stop-eta/${stopId}`);
+            const data = await response.json();
+            
+            routes.forEach(config => {
+                updateTileDOM(stopId, config.route, config.dir, data.data);
+            });
+        } catch (error) {
+            console.error(`Error fetching Stop ${stopId}:`, error);
+        }
+    }
+}
+
+async function refreshSingleTile(stopId, route, dir, tileElement) {
+    // Add animation
+    tileElement.classList.add('refreshing');
+    const container = document.getElementById(`bus-${stopId}-${route}-${dir}`);
+    if (container) container.innerHTML = '<div class="loader"></div>';
+    
+    try {
+        const response = await fetch(`https://data.etabus.gov.hk/v1/transport/kmb/stop-eta/${stopId}`);
+        const data = await response.json();
+        updateTileDOM(stopId, route, dir, data.data);
+    } catch (error) {
+        if (container) container.innerHTML = '<p>Error refreshing</p>';
+    } finally {
+        // Remove animation after 500ms to ensure it's visible
+        setTimeout(() => tileElement.classList.remove('refreshing'), 500);
+    }
+}
+
+function updateTileDOM(stopId, route, dir, allStopData) {
+    const container = document.getElementById(`bus-${stopId}-${route}-${dir}`);
+    if (!container) return;
+
+    // Filter by route and direction ('O'/'I' mapping to 0/1 fallback applied safely)
+    const validEtas = allStopData
+        .filter(bus => bus.route === route && (bus.dir === dir || bus.dir === (dir === 'O' ? '0' : '1')) && bus.eta)
+        .slice(0, 3);
+    
+    if (validEtas.length === 0) {
+        container.innerHTML = '<p>No upcoming buses</p>';
+        return;
+    }
+
+    container.innerHTML = validEtas.map(bus => {
+        const etaDate = new Date(bus.eta);
+        const timeString = etaDate.toLocaleTimeString('en-HK', {hour: '2-digit', minute: '2-digit', hour12: false});
+        
+        const diffMs = etaDate - new Date();
+        const diffMins = Math.max(0, Math.floor(diffMs / 60000));
+        
+        // Include Traditional Chinese dest and remarks
+        const remarkHtml = bus.rmk_tc ? `<span class="bus-rmk">(${bus.rmk_tc})</span>` : '';
+        
+        return `
+            <div class="bus-row">
+                <span>往: ${bus.dest_tc} ${remarkHtml}</span>
+                <div class="bus-eta-time">
+                    <span style="color: var(--accent); font-weight: bold;">${timeString}</span>
+                    <span class="bus-countdown">(${diffMins} min)</span>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
 
 // 1. Current Time
 function updateTime() {
