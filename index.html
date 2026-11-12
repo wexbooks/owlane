@@ -8,14 +8,21 @@
 </head>
 <body>
     <main id="dashboard" class="dashboard">
-        <!-- Current Time Tile -->
+        <!-- Current Time & Profile Tile -->
         <section class="tile time-tile">
-            <h1 id="time">--:--:--</h1>
-            <p id="date">Loading...</p>
+            <div class="time-header">
+                <h1 id="time">--:--:--</h1>
+                <p id="date">Loading...</p>
+            </div>
+            <div class="profile-selector">
+                <button class="profile-btn" data-profile="work" onclick="switchProfile('work')">💼 返工</button>
+                <button class="profile-btn" data-profile="offwork" onclick="switchProfile('offwork')">🏠 放工</button>
+                <button class="profile-btn" data-profile="holiday" onclick="switchProfile('holiday')">🎉 放假</button>
+            </div>
         </section>
 
         <!-- Weather Tile -->
-        <section class="tile weather-tile">
+        <section class="tile weather-tile persistent-tile">
             <h2>Weather (HKO)</h2>
             <div id="weather-info" class="tile-content">
                 <div class="loader"></div>
@@ -23,7 +30,7 @@
         </section>
 
         <!-- Tide Tile -->
-        <section class="tile tide-tile">
+        <section class="tile tide-tile persistent-tile">
             <h2>Tide (Tai Po Kau)</h2>
             <p class="subtitle">3-Day Forecast</p>
             <div id="tide-info" class="tile-content scrollable">
@@ -31,7 +38,7 @@
             </div>
         </section>
         
-        <!-- The 7 Bus Tiles will be injected here automatically by app.js -->
+        <!-- Bus tiles will be injected here -->
     </main>
     <script src="app.js"></script>
 </body>
