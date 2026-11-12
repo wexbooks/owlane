@@ -187,3 +187,84 @@ h2 {
     font-size: 0.8rem;
     color: var(--text-secondary);
 }
+
+/* ... Keep previous root variables, body, and general grid styles ... */
+
+.time-tile {
+    justify-content: space-between; /* Space out time and profiles */
+    align-items: center;
+    background: linear-gradient(135deg, #2c3e50, #3498db);
+    grid-column: 1 / -1;
+    min-height: 120px;
+    flex-direction: row; /* Horizontal layout for desktop */
+    padding: 20px 40px;
+}
+
+@media (max-width: 600px) {
+    .time-tile {
+        flex-direction: column;
+        gap: 16px;
+        text-align: center;
+    }
+}
+
+.profile-selector {
+    display: flex;
+    gap: 12px;
+}
+
+.profile-btn {
+    background: rgba(255, 255, 255, 0.1);
+    border: 2px solid transparent;
+    color: white;
+    padding: 8px 16px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: bold;
+    transition: all 0.2s ease;
+}
+
+.profile-btn.active {
+    background: rgba(255, 255, 255, 0.2);
+    border: 2px solid var(--accent);
+    box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+}
+
+/* Bus Tile Click-to-refresh interactivity */
+.bus-tile {
+    cursor: pointer;
+    position: relative;
+    user-select: none;
+}
+
+.bus-tile:active {
+    transform: scale(0.98);
+}
+
+.bus-title {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.refresh-icon {
+    font-size: 0.9rem;
+    opacity: 0.5;
+    transition: transform 0.3s ease;
+}
+
+.bus-tile.refreshing .refresh-icon {
+    animation: spin 0.5s linear infinite;
+    opacity: 1;
+}
+
+.bus-row {
+    font-size: 0.95rem;
+}
+
+.bus-rmk {
+    font-size: 0.75rem;
+    color: #ff9800;
+    margin-left: 4px;
+}
